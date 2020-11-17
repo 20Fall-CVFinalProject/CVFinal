@@ -5,4 +5,5 @@
 
 ### Links
 > [GroupInfo](https://shimo.im/sheets/rQvcCQydvdjhvPYC/)
+
 > [Projects](https://shimo.im/docs/hhTgdH3kktxGcxXk/)
