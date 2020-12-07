@@ -10,8 +10,8 @@ import numpy as np
 # 		# place holder
 # 	])
 def get_direction(x_0,y_0,x_1,y_1):
-	# print('start:',x_0,y_0)
-	# print('end:',x_1,y_1)
+	'''Get normalized direction from two points 0 -> 1
+	'''
 	d = np.array([x_1 - x_0, y_1 - y_0])
 	d = d/np.linalg.norm(d)
 	return d
@@ -47,6 +47,8 @@ def extract_gaze_point():
 	pass
 
 def MIT_get_head_img(img_path,annotation,show=0):
+	'''get the head image for MIT data
+	'''
 	image = cv2.imread(img_path, cv2.IMREAD_COLOR)
 	h,w,_ = image.shape
 
@@ -68,6 +70,8 @@ def MIT_get_head_img(img_path,annotation,show=0):
 	return face_image
 
 def MIT_extract_annotation_as_dict(annotation):
+	'''each line of MIT transform into annotation dictionary
+	'''
 	f = annotation.split(',')
 	ann  = {'path':f[0],
 			'index':f[1],
