@@ -74,34 +74,8 @@ def extract_gaze_point(heatmap):
 	return (w_index/w, h_index/h)
 
 
-def MIT_get_head_img(img_path,annotation,show=0):
-	'''get the head image for MIT data
-	show = 0 -> don't show
-	show = 1 -> show head image
-	show = 2 -> show haed image and original image
+def get_head_img(img_path,annotation,show=0):
 	'''
-	image = cv2.imread(img_path, cv2.IMREAD_COLOR)
-	h,w,_ = image.shape
-
-	y_0 = int(annotation['y_init'] * h)
-	y_1 = int((annotation['y_init'] + annotation['h']) * h)
-	x_0 = int(annotation['x_init'] * w)
-	x_1 = int((annotation['x_init'] + annotation['w']) * w )
-
-	face_image = image[y_0:y_1, x_0:x_1,:]
-	face_image = cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB)
-	face_image = Image.fromarray(face_image)
-
-	if show:
-		face_image.show()
-		if show == 2:
-			img = Image.open(img_path)
-			img.show()
-
-	return face_image
-
-def SVIP_get_head_img(img_path,annotation,show=0):
-	'''get the head image for SVIP data
 	show = 0 -> don't show
 	show = 1 -> show head image
 	show = 2 -> show haed image and original image
@@ -144,6 +118,8 @@ def MIT_extract_annotation_as_dict(annotation):
 	return ann
 
 def SVIP_extract_annotation_as_dict(path,box,point,size):
+	'''generate MIT-like annotations for SVIP data
+	'''
 	ann = {'path':path,
 			'index':None,
 			'x_init': box[0]/size[1],
