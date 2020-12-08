@@ -26,33 +26,31 @@ def get_gaze_direction_GT(head_x,head_y,gaze_x,gaze_y):
 def get_heatmap_GT(height,width,gaze_x,gaze_y,kernlen=21, std=3):
 	'''Get ground truth heatmap or (51,9)
 	'''
-    gkern1d = signal.gaussian(kernlen, std=std).reshape(kernlen, 1)
-    kernel_map = np.outer(gkern1d, gkern1d)
-    k_size = kernel.shape[0] // 2
-    x, y = points
-    image_height, image_width = im_shape[:2]
-    x, y = int(round(image_width * x)), int(round(y * image_height))
-    x1, y1 = x - k_size, y - k_size
-    x2, y2 = x + k_size, y + k_size
-    h, w = shape
-    if x2 >= w:
-        w = x2 + 1
-    if y2 >= h:
-        h = y2 + 1
-    heatmap = np.zeros((h, w))
-    left, top, k_left, k_top = x1, y1, 0, 0
-    if x1 < 0:
-        left = 0
-        k_left = -x1
-    if y1 < 0:
-        top = 0
-        k_top = -y1
+	gkern1d = signal.gaussian(kernlen, std=std).reshape(kernlen, 1)
+	kernel_map = np.outer(gkern1d, gkern1d)
+	if isinstance(gaze_x,float) and isinstance(gaze_y,float):
+		gaze_x = int(width * gaze_x)
+		gaze_y = int(height * gaze_y)
 
-    heatmap[top:y2+1, left:x2+1] = kernel[k_top:, k_left:]
-    return heatmap[0:shape[0], 0:shape[0]]
+	k_size = kernlen // 2
+	x1, x2 = gaze_x - k_size, gaze_x + k_size
+	y1, y2 = gaze_y - k_size, gaze_y + k_size
+	if x2 >= width:
+		width = x2
+	if y2 >= height:
+		height = y2
+	left, top, k_left, k_top = x1, y1, 0, 0
+	if x1 < 0:
+		left = 0
+		k_left = -x1
+	if y1 < 0:
+		top = 0
+		k_top = -y1
 
-	
-
+	heatmap = np.zeros((height,width))
+	heatmap[top:y2+1, left:x2+1] = kernel_map[k_top:, k_left:]
+	heatmap = heatmap * 255
+	return Image.fromarray(heatmap.astype('float64')).convert('RGB')
 
 def get_direction_field(height,width,head_x,head_y,gaze_direction,gamma=1):
 	'''get direction field from head position and gaze direction
@@ -68,13 +66,45 @@ def get_direction_field(height,width,head_x,head_y,gaze_direction,gamma=1):
 	field = field * 255
 	return Image.fromarray(field.astype('float64')).convert('RGB')
 
-def extract_gaze_point():
+def extract_gaze_point(heatmap):
 	'''extract gaze point drom heatmap
 	'''
-	pass
+	h,w = heatmap.shape
+	h_index, w_index = np.unravel_index(heatmap.argmax(), heatmap.shape)
+	return (w_index/w, h_index/h)
+
 
 def MIT_get_head_img(img_path,annotation,show=0):
 	'''get the head image for MIT data
+	show = 0 -> don't show
+	show = 1 -> show head image
+	show = 2 -> show haed image and original image
+	'''
+	image = cv2.imread(img_path, cv2.IMREAD_COLOR)
+	h,w,_ = image.shape
+
+	y_0 = int(annotation['y_init'] * h)
+	y_1 = int((annotation['y_init'] + annotation['h']) * h)
+	x_0 = int(annotation['x_init'] * w)
+	x_1 = int((annotation['x_init'] + annotation['w']) * w )
+
+	face_image = image[y_0:y_1, x_0:x_1,:]
+	face_image = cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB)
+	face_image = Image.fromarray(face_image)
+
+	if show:
+		face_image.show()
+		if show == 2:
+			img = Image.open(img_path)
+			img.show()
+
+	return face_image
+
+def SVIP_get_head_img(img_path,annotation,show=0):
+	'''get the head image for SVIP data
+	show = 0 -> don't show
+	show = 1 -> show head image
+	show = 2 -> show haed image and original image
 	'''
 	image = cv2.imread(img_path, cv2.IMREAD_COLOR)
 	h,w,_ = image.shape
@@ -111,6 +141,20 @@ def MIT_extract_annotation_as_dict(annotation):
 			'gaze_x': float(f[8]),
 			'gaze_y': float(f[9]),
 			'meta': f[10]}
+	return ann
+
+def SVIP_extract_annotation_as_dict(path,box,point,size):
+	ann = {'path':path,
+			'index':None,
+			'x_init': box[0]/size[1],
+			'y_init': box[1]/size[0],
+			'w': box[2]/size[1],
+			'h': box[3]/size[0],
+			'eye_x': (box[0]+box[2]/2)/size[1],
+			'eye_y': (box[1]+box[3]/2)/size[0],
+			'gaze_x': point[0]/size[1],
+			'gaze_y': point[1]/size[0],
+			'meta': None}
 	return ann
 
 
