@@ -9,7 +9,6 @@ mit_data_transforms = transforms.Compose([
 		# place holder
 	])
 
-
 def get_gaze_direction_GT():
 	'''Get gaze direction from head position and gaze point
 	'''
@@ -30,4 +29,7 @@ def extract_gaze_point():
 	'''extract gaze point drom heatmap
 	'''
 	pass
-	
+
+
+
+
