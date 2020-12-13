@@ -15,7 +15,7 @@ def conv3x3(indepth, depth, stride=1):
     return nn.Conv2d(indepth, depth, kernel_size=3, stride=stride, padding=1, bias=False)
 
 def conv1x1(indepth, depth, stride=1):
-    return nn.Conv2d(indepth, depth, kernel_size=1, stride=stride, padding=0, bias=Fal
+    return nn.Conv2d(indepth, depth, kernel_size=1, stride=stride, padding=0, bias=False)
 
 class BasicBlock(nn.Module):
     expansion = 1
