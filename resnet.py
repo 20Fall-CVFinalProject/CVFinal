@@ -10,13 +10,12 @@ model_urls = {
     'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
 }
 
-def resnet50(pretrained=False, **kwargs):
-    model = ResNet()
-    return model
 
 def conv3x3(indepth, depth, stride=1):
     return nn.Conv2d(indepth, depth, kernel_size=3, stride=stride, padding=1, bias=False)
 
+def conv1x1(indepth, depth, stride=1):
+    return nn.Conv2d(indepth, depth, kernel_size=1, stride=stride, padding=0, bias=False)
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -25,29 +24,64 @@ class BasicBlock(nn.Module):
     #size: image size = size*size
     def __init__(self, indepth, depth, stride=1, downsample=None, size=64):
         super(BasicBlock, self).__init__() # why
-        self.conv1 = conv3x3(indepth, depth, stride)
-        self.bn1 = nn.BatchNorm2d(depth)
+        self.conv1 = conv3x3(indepth, depth, stride) # stride = 1 or 2
+        self.conv2 = conv3x3(depth, depth)   #default: stride = 1
+        self.bn = nn.BatchNorm2d(depth)
         self.relu = nn.ReLU(inplace=True)
-        self.conv2 = conv3x3(depth, depth)
-        self.bn2 = nn.BatchNorm2d(depth)
+
         self.downsample = downsample
         self.stride = stride
+
     def forward(self, x):
         input = x
 
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
+        y = self.conv1(x)
+        y = self.bn(y)
+        y = self.relu(y)
 
-        out = self.conv2(out)
-        out = self.bn2(out)
+        y = self.conv2(y)
+        y = self.bn(y)
 
         if self.downsample is not None:
             input = self.downsample(input)
-        out += input
 
-        out = self.relu(out)
-        return out
+        return self.relu(y+input)
+
+class BottleNeck(nn.Module):
+    expansion = 4  
+    #indepth: depth of input image
+    #depth: depth of output image
+    #size: image size = size*size
+    def __init__(self, indepth, depth, stride=1, downsample=None, size=64):
+        super(BottleNeck, self).__init__() # why
+        self.conv1 = conv1x1(indepth, depth)
+        self.conv2 = conv3x3(depth, depth, stride)
+        self.conv3 = conv1x1(depth, depth*4)
+        self.bn = nn.BatchNorm2d(depth)
+        self.bn_4 = nn.BatchNorm2d(depth * 4)
+        self.relu = nn.ReLU(inplace=True)
+
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        input = x
+
+        y = self.conv1(x)
+        y = self.bn(y)
+        y = self.relu(y)
+
+        y = self.conv2(y)
+        y = self.bn(y)
+        y = self.relu(y)
+        
+        y = self.conv2(y)
+        y = self.bn_4(y)
+
+        if self.downsample is not None:
+            input = self.downsample(input)
+        
+        return self.relu(y+input)
 
 class ResNet(nn.Module):
     def __init__(self, block, layers, num_classes = 1000):
@@ -56,7 +90,7 @@ class ResNet(nn.Module):
         super(ResNet,self).__init__()
         #input img = 224 * 224 * 3
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
-        self.bn1 = nn.BatchNorm2d(64)
+        self.bn = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
         #112 * 112 * 64
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -80,6 +114,7 @@ class ResNet(nn.Module):
             elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
+
     def _make_layer(self, block, depth, num_blocks, stride = 1):
         downsample = None
         if stride != 1 or self.indepth != depth * block.expansion:
@@ -89,16 +124,16 @@ class ResNet(nn.Module):
                 nn.BatchNorm2d(depth * block.expansion),
             )
         this_layer = []
-        this_layer.append(block(self.indepth, depth, stride, downsample))
+        this_layer.append(block(self.indepth, depth, stride, downsample)) # only the first stride might be 2 or 1
 
         self.indepth = depth * block.expansion
-        for i in range(1, num_blocks):
+        for _ in range(1, num_blocks):
             this_layer.append(block(self.indepth, depth))
-
         return nn.Sequential(*this_layer)
+
     def forward(self, x):
         out = self.conv1(x)
-        out = self.bni(out)
+        out = self.bn(out)
         out = self.relu(out)
         out = self.maxpool(out)
 
@@ -116,4 +151,28 @@ def resnet18(pretrained=False, **kwargs):
     model = ResNet(BasicBlock, [2, 2, 2, 2], **kwargs)
     if pretrained:
         model.load_state_dict(model_zoo.load_url(model_urls['resnet18']))
+    return model
+
+def resnet34(pretrained=False, **kwargs):
+     model = ResNet(BasicBlock, [3, 4, 6, 3], **kwargs)
+    if pretrained:
+        model.load_state_dict(model_zoo.load_url(model_urls['resnet34']))
+    return model
+
+def resnet50(pretrained=False, **kwargs):
+    model = ResNet(BottleNeck, [3, 4, 6, 3], **kwargs)
+    if pretrained:
+        model.load_state_dict(model_zoo.load_url(model_urls['resnet50']))
+    return model
+
+def resnet101(pretrained=False, **kwargs):
+    model = ResNet(BottleNeck, [3, 4, 23, 3], **kwargs)
+    if pretrained:
+        model.load_state_dict(model_zoo.load_url(model_urls['resnet101']))
+    return model
+
+def resnet152(pretrained=False, **kwargs):
+    model = ResNet(BottleNeck, [3, 8, 36, 3], **kwargs)
+    if pretrained:
+        model.load_state_dict(model_zoo.load_url(model_urls['resnet152']))
     return model
