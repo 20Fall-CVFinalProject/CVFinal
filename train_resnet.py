@@ -62,7 +62,7 @@ optimizer = optim.Adam([{'params': net.head_feature_net.parameters(),
 							{'params': net.concatenate_net.parameters(), 
 							'initial_lr': learning_rate}],
 							lr=learning_rate, weight_decay=0.0001)
-epoch = 400
+epoch = 300
 for i in range(epoch):
 	print(i)
 	optimizer.zero_grad()
