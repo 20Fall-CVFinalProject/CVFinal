@@ -8,107 +8,103 @@ from PIL import Image
 import cv2
 from tqdm import tqdm
 # preprocess
+import json
 image_transforms = transforms.Compose([transforms.Resize((224, 224)),
-									  transforms.ToTensor(),
-									  transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
+									   transforms.ToTensor(),
+									   transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
 
 head_transforms = transforms.Compose([transforms.Resize((224, 224)),
 									  transforms.ToTensor(),
 									  transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
 
-class MITDataset(Dataset):
+class SVIPDataset(Dataset):
 	def __init__(self, root_dir, ann_file):
 		self.root_dir = root_dir
 		with open(root_dir + ann_file) as f:
-			self.ann_list = f.read().strip('\n').split('\n')
-
-		self.image_num = len(self.ann_list)
+			self.anns = json.load(f)
+		self.image_num = len(self.anns)
+		print(self.image_num)
 	def __len__(self):
+		# return 2
 		return self.image_num
 
 	def __getitem__(self,idx):
-		ann = self.extract_MIT(self.ann_list[idx])
+		ann = self.anns[idx]
 
 		img = cv2.imread(self.root_dir + ann['path'], cv2.IMREAD_COLOR)
-
+		#image
 		image = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 		image = Image.fromarray(image)
 		image = image_transforms(image)
-
+		#head image
 		head_image = self.get_head_img(img,ann)
-
-		head_pos = [ann['eye_x'],ann['eye_y']]
-
-		gaze_dir = self.get_direction(ann['eye_x'],ann['eye_y'],ann['gaze_x'],ann['gaze_y'])
-
-		gaze = [ann['gaze_x'],ann['gaze_y']]
-
-		heatmap = self.get_heatmap_GT(img.shape[0],img.shape[1],ann['gaze_x'],ann['gaze_y'])
+		#head position
+		head_pos = ann['head_position']
+		#gaze direction
+		gaze_dir = ann['gaze_direction']
+		#gaze_direction_field
+		gdf = self.get_direction_field(head_pos[0],head_pos[1],gaze_dir)
+		gdf = torch.from_numpy(gdf).unsqueeze(0)
+		gdf_2 = torch.pow(gdf,2)
+		gdf_5 = torch.pow(gdf,5)
+		#gaze point
+		gaze = ann['gaze_point']
+		#heatmap
+		heatmap = self.get_heatmap_GT(gaze[0],gaze[1])
 
 		sample = {'image':image,
 				  'head_image':head_image,
 				  'head_position':torch.FloatTensor(head_pos),
-				  'gaze_direction':torch.from_numpy(gaze_dir),
+				  'gaze_direction':torch.FloatTensor(gaze_dir),
+				  'gaze_direction_field': torch.cat([image,gdf,gdf_2,gdf_5],dim=0).unsqueeze(0),
                   'gaze_positon': torch.FloatTensor(gaze),
                   'heatmap': torch.FloatTensor(heatmap).unsqueeze(0)}
-
+		# print(sample["gaze_positon"])
 		return sample
-	def extract_MIT(self,ann_string):
-		f = ann_string.split(',')
-		ann  = {'path':f[0],
-				'index':f[1],
-				'x_init': float(f[2]),
-				'y_init': float(f[3]),
-				'w': float(f[4]),
-				'h': float(f[5]),
-				'eye_x': float(f[6]),
-				'eye_y': float(f[7]),
-				'gaze_x': float(f[8]),
-				'gaze_y': float(f[9]),
-				'meta': f[10]}
-		if ann['x_init']<0:
-			ann['x_init'] = 0
-		if ann['y_init']<0:
-			ann['y_init'] = 0
-		if ann['x_init'] + ann['w']>1:
-			ann['w'] = 1 - ann['x_init']
-		if ann['y_init'] + ann['h']>1:
-			ann['h'] = 1 - ann['y_init']
-		return ann
 
 	def get_head_img(self,image,annotation):
 		h,w,_ = image.shape
-		y_0 = int(annotation['y_init'] * h)
-		y_1 = int((annotation['y_init'] + annotation['h']) * h)
-		x_0 = int(annotation['x_init'] * w)
-		x_1 = int((annotation['x_init'] + annotation['w']) * w )
+		x_0 = int(w*annotation['x_init'])
+		x_1 = int(w*(annotation['x_init']+annotation['w']))
+		y_0 = int(h*annotation['y_init'])
+		y_1 = int(h*(annotation['y_init']+annotation['h']))
 		face_image = image[y_0:y_1, x_0:x_1,:]
 		face_image = cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB)
 		face_image = Image.fromarray(face_image)
 		face_image = head_transforms(face_image)
 		return face_image
 
-	def get_direction(self,x_0,y_0,x_1,y_1):
-		d = np.array([x_1 - x_0, y_1 - y_0])
-		d = d/np.linalg.norm(d)
-		return d
+	def get_direction_field(self,head_x,head_y,gaze_direction,gamma=1):
+		head_x = int(224 * head_x)
+		head_y = int(224 * head_y)
+		field = np.zeros((224,224))
+		for idx_y,row in enumerate(field):
+			for idx_x,pix in enumerate(row):
+				d = np.array([idx_x - head_x, idx_y - head_y])
+				G = d/np.linalg.norm(d)
+				field[idx_y,idx_x] = max(G[0] * gaze_direction[0] + G[1] * gaze_direction[1],0)
+		return field
 
-	def get_heatmap_GT(self,height,width,gaze_x,gaze_y,kernlen=21, std=3):
+	def get_heatmap_GT(self,gaze_x,gaze_y,kernlen=21, std=3):
 		'''Get ground truth heatmap or (51,9)
 		'''
 		gkern1d = signal.gaussian(kernlen, std=std).reshape(kernlen, 1)
 		kernel_map = np.outer(gkern1d, gkern1d)
 
-		gaze_x = int(width * gaze_x)
-		gaze_y = int(height * gaze_y)
-
+		gaze_x = int(224*gaze_x)
+		gaze_y = int(224*gaze_y)
+		
 		k_size = kernlen // 2
-		x1, x2 = gaze_x - k_size, gaze_x + k_size
-		y1, y2 = gaze_y - k_size, gaze_y + k_size
-		if x2 >= width:
-			width = x2
-		if y2 >= height:
-			height = y2
+
+		x1, y1 = gaze_x - k_size, gaze_y - k_size
+		x2, y2 = gaze_x + k_size, gaze_y + k_size
+
+		h, w = 224,224
+		if x2 >= w:
+			w = x2 + 1
+		if y2 >= h:
+			h = y2 + 1
+		heatmap = np.zeros((h, w))
 		left, top, k_left, k_top = x1, y1, 0, 0
 		if x1 < 0:
 			left = 0
@@ -117,30 +113,29 @@ class MITDataset(Dataset):
 			top = 0
 			k_top = -y1
 
-		heatmap = np.zeros((height,width))
 		heatmap[top:y2+1, left:x2+1] = kernel_map[k_top:, k_left:]
-		return heatmap
+		return heatmap[:224, :224]
 
 def main():
-	train_set = MITDataset(root_dir='data/MIT/',
-                           ann_file='train_annotations.txt')
+	train_set = SVIPDataset(root_dir='data/SVIP/',
+                           ann_file='SVIP_annotation.json')
 
-	train_data_loader = DataLoader(train_set, batch_size=32 * 4,
-                                   shuffle=True, num_workers=16)
-
-	for i, data in enumerate(train_data_loader):
+	train_data_loader = DataLoader(train_set, batch_size=1,
+                                   shuffle=False, num_workers=1)
+	for i, data in tqdm(enumerate(train_data_loader)):
+		# print('+++++++++++|{}|+++++++++++'.format(i))
 		image = data['image']
+		# print('1:',image)
 		head_image = data['head_image']
-		head_position = data['head_positio']
+		# print('2:',head_image)
+		head_position = data['head_position']
+		# print('3:',head_position)
 		gaze_direction = data['gaze_direction']
-		gaze_positon = data['gaze_direction']
-		heatmap = heatmap['heatmap']
-		print(type(data['image']))
-		print(type(data['head_image']))
-		print(type(data['head_positio']))
-		print(type(data['gaze_direction']))
-		print(type(data['gaze_direction']))
-		print(type(heatmap['heatmap']))
+		# print('4:',gaze_direction)
+		gaze_positon = data['gaze_positon']
+		# print('5:',gaze_positon)
+		heatmap = data['heatmap']
+		# print('6:',heatmap)
 
 
 
