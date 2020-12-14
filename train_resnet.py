@@ -23,13 +23,13 @@ def GDLoss(direction, gt_direction):
 with open(MIT_DATA_PATH,'r') as ann:
     data_mit = ann.read()
 # print("MIT:",data_mit)
-image_transforms = transforms.Compose([transforms.Resize((224, 224)),
-									  transforms.ToTensor(),
-									  transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
+# image_transforms = transforms.Compose([transforms.Resize((224, 224)),
+# 									  transforms.ToTensor(),
+# 									  transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
 
-head_transforms = transforms.Compose([transforms.Resize((224, 224)),
-									  transforms.ToTensor(),
-									  transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
+# head_transforms = transforms.Compose([transforms.Resize((224, 224)),
+# 									  transforms.ToTensor(),
+# 									  transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
 
 ann = utils.MIT_extract_annotation_as_dict(data_mit)
 # print(ann)
@@ -62,7 +62,8 @@ optimizer = optim.Adam([{'params': net.head_feature_net.parameters(),
 							{'params': net.concatenate_net.parameters(), 
 							'initial_lr': learning_rate}],
 							lr=learning_rate, weight_decay=0.0001)
-epoch = 300
+epoch = 500
+outputlist = []
 for i in range(epoch):
 	print(i)
 	optimizer.zero_grad()
