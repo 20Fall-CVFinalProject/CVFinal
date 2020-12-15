@@ -90,6 +90,10 @@ import cv2
 from tqdm import tqdm
 # preprocess
 import json
+import torch.nn as nn
+import torch.optim as optim
+from GazeDirectionPathway import GazeDirectionNet
+
 image_transforms = transforms.Compose([transforms.Resize((224, 224)),
 									   transforms.ToTensor(),
 									   transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
@@ -195,27 +199,44 @@ class SVIPDataset(Dataset):
 		heatmap[top:y2+1, left:x2+1] = kernel_map[k_top:, k_left:]
 		return heatmap[:224, :224]
 
+def GDLoss(direction, gt_direction):
+	cosine_similarity = nn.CosineSimilarity()
+	gt_direction = gt_direction.unsqueeze(0)
+	# print(direction, gt_direction)
+	loss = torch.mean(1 - cosine_similarity(direction, gt_direction))
+	return loss
+
 def main():
+	net = GazeDirectionNet()
+	print("train")
+	learning_rate = 0.8
+	optimizer = optim.Adam([{'params': net.head_feature_net.parameters(),
+							 'initial_lr': learning_rate},
+							{'params': net.head_feature_process.parameters(),
+							 'initial_lr': learning_rate},
+							{'params': net.head_pos_net.parameters(),
+							 'initial_lr': learning_rate},
+							{'params': net.concatenate_net.parameters(),
+							 'initial_lr': learning_rate}],
+						   lr=learning_rate, weight_decay=0.0001)
+
 	train_set = SVIPDataset(root_dir='data/SVIP/',
                            ann_file='SVIP_annotation.json')
 
 	train_data_loader = DataLoader(train_set, batch_size=1,
                                    shuffle=False, num_workers=1)
-	for i, data in tqdm(enumerate(train_data_loader)):
-		# print('+++++++++++|{}|+++++++++++'.format(i))
-		#image = data['image']
-		# print('1:',image)
-		head_image = data['head_image']
-		# print('2:',head_image)
-		head_position = data['head_position']
-		# print('3:',head_position)
-		gaze_direction = data['gaze_direction']
-		# print('4:',gaze_direction)
-		#gaze_positon = data['gaze_positon']
-		# print('5:',gaze_positon)
-		#heatmap = data['heatmap']
-		# print('6:',heatmap)
-
+	epoch = 1
+	for j in range(epoch):
+	    for i, data in tqdm(enumerate(train_data_loader)):
+	    	head_image = data['head_image']
+	    	head_position = data['head_position']
+	    	gaze_direction = data['gaze_direction']
+	    	optimizer.zero_grad()
+	    	output = net([head_image, head_position])
+	    	loss = GDLoss(output, gaze_direction)
+	    	loss.backward()
+	    	optimizer.step()
+	    print(loss.data)
 
 
 if __name__ == '__main__':

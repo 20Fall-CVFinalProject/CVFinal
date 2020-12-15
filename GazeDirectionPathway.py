@@ -38,6 +38,6 @@ class GazeDirectionNet(nn.Module):
         
         head_pos_feature =self.head_pos_net(head_pos)
         direction = self.concatenate_net(torch.cat((head_feature,head_pos_feature),1))
-        norm = torch.linalg.norm(direction, 2, dim = 1) 
+        norm = torch.norm(direction, 2, dim = 1)
         normalized_direction = direction / norm.view([-1, 1])
         return normalized_direction
