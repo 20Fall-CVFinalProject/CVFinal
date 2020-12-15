@@ -93,7 +93,7 @@ import json
 import torch.nn as nn
 import torch.optim as optim
 from GazeDirectionPathway import GazeDirectionNet
-
+import matplotlib as plt
 image_transforms = transforms.Compose([transforms.Resize((224, 224)),
 									   transforms.ToTensor(),
 									   transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
@@ -205,7 +205,14 @@ def GDLoss(direction, gt_direction):
 	# print(direction, gt_direction)
 	loss = torch.mean(1 - cosine_similarity(direction, gt_direction))
 	return loss
-
+def LossPlot(lst,plotname,folder):
+	x = np.linspace(1,len(lst),len(lst))
+	plt.figure()
+	plt.plot(x,lst)
+	if not os.path.exists(folder):    
+		print("notexist")         
+		os.makedirs(folder)
+	plt.savefig(folder + '/' + plotname + '.jpg')
 def main():
 	net = GazeDirectionNet()
 	print("train")
@@ -225,20 +232,27 @@ def main():
 
 	train_data_loader = DataLoader(train_set, batch_size=1,
                                    shuffle=False, num_workers=1)
+	MeanLossList = []
 	epoch = 1
 	for j in range(epoch):
-	    for i, data in tqdm(enumerate(train_data_loader)):
-	    	head_image = data['head_image']
-	    	head_position = data['head_position']
-	    	gaze_direction = data['gaze_direction']
-	    	optimizer.zero_grad()
-	    	output = net([head_image, head_position])
-	    	loss = GDLoss(output, gaze_direction)
-	    	loss.backward()
-	    	optimizer.step()
-	    print(loss.data)
+		LossList = []
+		for i, data in tqdm(enumerate(train_data_loader)):
+			head_image = data['head_image']
+			head_position = data['head_position']
+			gaze_direction = data['gaze_direction']
+			optimizer.zero_grad()
+			output = net([head_image, head_position])
+			loss = GDLoss(output, gaze_direction)
+			loss.backward()
+			optimizer.step()
+			print(loss.data)
+			LossList.append(loss.data)
 
-
+			netpath = str(j) + '_epoch.pth'
+			torch.save(net.state_dict(),netpath)
+		LossPlot(LossList,str(j) + '_epoch','./loss')
+		MeanLossList.append(np.mean(LossList))
+	LossPlot(MeanLossList,'meanloss_'+ str(epoch) + 'epoches','./meanloss')
 if __name__ == '__main__':
     main()
 #################################### train on dataset   ######################################
