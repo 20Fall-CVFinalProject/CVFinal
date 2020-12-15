@@ -109,10 +109,11 @@ class SVIPDataset(Dataset):
 		with open(root_dir + ann_file) as f:
 			self.anns = json.load(f)
 		self.image_num = len(self.anns)
-		print(self.image_num)
 	def __len__(self):
 		# return 2
-		return self.image_num
+		length = self.image_num
+		#length = 1
+		return length
 
 	def __getitem__(self,idx):
 		ann = self.anns[idx]
@@ -218,7 +219,7 @@ def LossPlot(lst,plotname,folder):
 def main():
 	net = GazeDirectionNet()
 	print("train")
-	learning_rate = 0.1
+	learning_rate = 0.0001
 	optimizer = optim.Adam([{'params': net.head_feature_net.parameters(),
 							 'initial_lr': learning_rate},
 							{'params': net.head_feature_process.parameters(),
@@ -236,9 +237,11 @@ def main():
                                    shuffle=False, num_workers=1)
 	MeanLossList = []
 	epoch = 1
-	scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10, verbose=False, threshold=0.0001, threshold_mode='rel', cooldown=0, min_lr=0, eps=1e-08)
+	scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1, last_epoch=-1)
+	#scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10, verbose=False, threshold=0.001, threshold_mode='rel', cooldown=0, min_lr=0, eps=1e-08)
 	#verbose=true: print the lr
 	#adjust lr: https://blog.csdn.net/m0_37531129/article/details/107794136
+	train_param = 'lr_' + str(learning_rate) + str(epoch) + '_epoch' 
 	for j in range(epoch):
 		LossList = []
 		for i, data in tqdm(enumerate(train_data_loader)):
@@ -255,11 +258,11 @@ def main():
 			print("lr:",learning_rate,"loss:",loss.data)
 			
 			LossList.append(loss.data)
-			netpath = str(j) + '_epoch.pth'
-			torch.save(net.state_dict(),netpath)
-		LossPlot(LossList,str(j) + '_epoch','./loss')
-		MeanLossList.append(np.mean(LossList))
-	LossPlot(MeanLossList,'meanloss_'+ str(epoch) + 'epoches','./meanloss')
+		netpath = str(j) + '_epoch.pth'
+		torch.save(net.state_dict(),netpath)
+	# 	LossPlot(LossList,str(j) + '_epoch','./loss')
+	# 	MeanLossList.append(np.mean(LossList))
+	# LossPlot(MeanLossList,'meanloss_'+ str(epoch) + 'epoches','./meanloss')
 if __name__ == '__main__':
     main()
 #################################### train on dataset   ######################################
