@@ -94,6 +94,7 @@ import torch.nn as nn
 import torch.optim as optim
 from GazeDirectionPathway import GazeDirectionNet
 import matplotlib as plt
+import utils
 image_transforms = transforms.Compose([transforms.Resize((224, 224)),
 									   transforms.ToTensor(),
 									   transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
@@ -154,6 +155,7 @@ class SVIPDataset(Dataset):
 		face_image = image[y_0:y_1, x_0:x_1,:]
 		face_image = cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB)
 		face_image = Image.fromarray(face_image)
+		# face_image.show()
 		face_image = head_transforms(face_image)
 		return face_image
 
@@ -216,7 +218,7 @@ def LossPlot(lst,plotname,folder):
 def main():
 	net = GazeDirectionNet()
 	print("train")
-	learning_rate = 0.8
+	learning_rate = 0.1
 	optimizer = optim.Adam([{'params': net.head_feature_net.parameters(),
 							 'initial_lr': learning_rate},
 							{'params': net.head_feature_process.parameters(),
@@ -234,6 +236,9 @@ def main():
                                    shuffle=False, num_workers=1)
 	MeanLossList = []
 	epoch = 1
+	scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10, verbose=False, threshold=0.0001, threshold_mode='rel', cooldown=0, min_lr=0, eps=1e-08)
+	#verbose=true: print the lr
+	#adjust lr: https://blog.csdn.net/m0_37531129/article/details/107794136
 	for j in range(epoch):
 		LossList = []
 		for i, data in tqdm(enumerate(train_data_loader)):
@@ -244,10 +249,12 @@ def main():
 			output = net([head_image, head_position])
 			loss = GDLoss(output, gaze_direction)
 			loss.backward()
-			optimizer.step()
-			print(loss.data)
+			#optimizer.step()
+			scheduler.step(loss)
+			print("output:",output.data,"groundtruth:",gaze_direction.data)
+			print("lr:",learning_rate,"loss:",loss.data)
+			
 			LossList.append(loss.data)
-
 			netpath = str(j) + '_epoch.pth'
 			torch.save(net.state_dict(),netpath)
 		LossPlot(LossList,str(j) + '_epoch','./loss')
