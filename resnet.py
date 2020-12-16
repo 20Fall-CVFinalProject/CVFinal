@@ -26,8 +26,9 @@ class BasicBlock(nn.Module):
         super(BasicBlock, self).__init__() # why
         self.conv1 = conv3x3(indepth, depth, stride) # stride = 1 or 2
         self.conv2 = conv3x3(depth, depth)   #default: stride = 1
-        self.bn = nn.BatchNorm2d(depth)
+        self.bn1 = nn.BatchNorm2d(depth)
         self.relu = nn.ReLU(inplace=True)
+        self.bn2 = nn.BatchNorm2d(depth)
 
         self.downsample = downsample
         self.stride = stride
@@ -36,11 +37,11 @@ class BasicBlock(nn.Module):
         input = x
 
         y = self.conv1(x)
-        y = self.bn(y)
+        y = self.bn1(y)
         y = self.relu(y)
 
         y = self.conv2(y)
-        y = self.bn(y)
+        y = self.bn2(y)
 
         if self.downsample is not None:
             input = self.downsample(input)
@@ -57,8 +58,9 @@ class BottleNeck(nn.Module):
         self.conv1 = conv1x1(indepth, depth)
         self.conv2 = conv3x3(depth, depth, stride)
         self.conv3 = conv1x1(depth, depth*4)
-        self.bn = nn.BatchNorm2d(depth)
-        self.bn_4 = nn.BatchNorm2d(depth * 4)
+        self.bn1 = nn.BatchNorm2d(depth)
+        self.bn2 = nn.BatchNorm2d(depth)
+        self.bn3 = nn.BatchNorm2d(depth * 4)
         self.relu = nn.ReLU(inplace=True)
 
         self.downsample = downsample
@@ -68,15 +70,15 @@ class BottleNeck(nn.Module):
         input = x
 
         y = self.conv1(x)
-        y = self.bn(y)
+        y = self.bn1(y)
         y = self.relu(y)
 
         y = self.conv2(y)
-        y = self.bn(y)
+        y = self.bn2(y)
         y = self.relu(y)
         
         y = self.conv3(y)
-        y = self.bn_4(y)
+        y = self.bn3(y)
 
         if self.downsample is not None:
             input = self.downsample(input)
@@ -90,7 +92,7 @@ class ResNet(nn.Module):
         super(ResNet,self).__init__()
         #input img = 224 * 224 * 3
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
-        self.bn = nn.BatchNorm2d(64)
+        self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
         #112 * 112 * 64
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -133,7 +135,7 @@ class ResNet(nn.Module):
 
     def forward(self, x):
         out = self.conv1(x)
-        out = self.bn(out)
+        out = self.bn1(out)
         out = self.relu(out)
         out = self.maxpool(out)
 

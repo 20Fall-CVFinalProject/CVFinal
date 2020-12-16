@@ -18,7 +18,7 @@ class GazeDirectionNet(nn.Module):
     def __init__(self):
         super(GazeDirectionNet,self).__init__()
         # head_feature extraction: input is headimage which is 3-dim,the output is 512-dim
-        self.head_feature_net = resnet.resnet50() # note to add pretrained!!!!  #for resnet50, the out_feature is 2048-dim
+        self.head_feature_net = resnet.resnet50(True) # note to add pretrained!!!!  #for resnet50, the out_feature is 2048-dim
         out_feature = 2048
         self.head_feature_process = nn.Sequential(nn.Linear(out_feature,512),nn.ReLU(inplace = True))
         

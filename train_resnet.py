@@ -95,6 +95,7 @@ import torch.optim as optim
 from GazeDirectionPathway import GazeDirectionNet
 import matplotlib as plt
 import utils
+import os
 image_transforms = transforms.Compose([transforms.Resize((224, 224)),
 									   transforms.ToTensor(),
 									   transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
@@ -241,9 +242,14 @@ def main():
 	#scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10, verbose=False, threshold=0.001, threshold_mode='rel', cooldown=0, min_lr=0, eps=1e-08)
 	#verbose=true: print the lr
 	#adjust lr: https://blog.csdn.net/m0_37531129/article/details/107794136
-	train_param = 'lr_' + str(learning_rate) + str(epoch) + '_epoch' 
+	pretrained = 'pretrained'
+	train_param = 'lr_' + str(learning_rate) + '_' + str(epoch) + '_epoch_' + pretrained
+	if not os.path.exists(train_param):    
+		print("notexist")         
+		os.makedirs(train_param)
 	for j in range(epoch):
 		LossList = []
+		epochName = str(j) + 'th_epoch'
 		for i, data in tqdm(enumerate(train_data_loader)):
 			head_image = data['head_image']
 			head_position = data['head_position']
@@ -258,11 +264,11 @@ def main():
 			print("lr:",learning_rate,"loss:",loss.data)
 			
 			LossList.append(loss.data)
-		netpath = str(j) + '_epoch.pth'
+		netpath = train_param + '/' + epochName +'.pth'
 		torch.save(net.state_dict(),netpath)
-	# 	LossPlot(LossList,str(j) + '_epoch','./loss')
-	# 	MeanLossList.append(np.mean(LossList))
-	# LossPlot(MeanLossList,'meanloss_'+ str(epoch) + 'epoches','./meanloss')
+		LossPlot(LossList,epochName,netpath + '/loss')
+		MeanLossList.append(np.mean(LossList))
+	LossPlot(MeanLossList,'meanloss_'+ str(epoch) + 'epoches',train_param)
 if __name__ == '__main__':
     main()
 #################################### train on dataset   ######################################
