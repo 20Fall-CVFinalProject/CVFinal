@@ -93,7 +93,7 @@ import json
 import torch.nn as nn
 import torch.optim as optim
 from GazeDirectionPathway import GazeDirectionNet
-import matplotlib as plt
+import matplotlib.pyplot as plt
 import utils
 import os
 image_transforms = transforms.Compose([transforms.Resize((224, 224)),
@@ -129,7 +129,11 @@ class SVIPDataset(Dataset):
 		#head position
 		head_pos = ann['head_position']
 		#gaze direction
-		gaze_dir = ann['gaze_direction']
+		
+
+		d = np.array([ann['gaze_point'][0] - head_pos[0], ann['gaze_point'][1] - head_pos[1]])
+		gaze_dir = d/np.linalg.norm(d)
+		# gaze_dir = ann['gaze_direction']
 		#gaze_direction_field
 		# gdf = self.get_direction_field(head_pos[0],head_pos[1],gaze_dir)
 		# gdf = torch.from_numpy(gdf).unsqueeze(0)
@@ -143,7 +147,7 @@ class SVIPDataset(Dataset):
 		sample = {
 				  'head_image':head_image,
 				  'head_position':torch.FloatTensor(head_pos),
-				  'gaze_direction':torch.FloatTensor(gaze_dir),
+				  'gaze_direction':torch.from_numpy(gaze_dir),
 		}
 		# print(sample["gaze_positon"])
 		return sample
@@ -254,6 +258,7 @@ def main():
 			head_image = data['head_image']
 			head_position = data['head_position']
 			gaze_direction = data['gaze_direction']
+			# print("!!!!!!!!:",gaze_direction)
 			optimizer.zero_grad()
 			output = net([head_image, head_position])
 			loss = GDLoss(output, gaze_direction)
