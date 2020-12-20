@@ -245,6 +245,7 @@ def main():
 	train_data_loader = DataLoader(train_set, batch_size=bs,
                                    shuffle=False, num_workers=1)
 	TotalLossList = []
+	MeanLossList = []
 	epoch = 5
 	scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1, last_epoch=-1)
 	#scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10, verbose=False, threshold=0.001, threshold_mode='rel', cooldown=0, min_lr=0, eps=1e-08)
@@ -258,6 +259,7 @@ def main():
 	for j in range(epoch):
 		LossList = []
 		epochName = str(j) + 'th_epoch'
+		scheduler.step()
 		for i, data in tqdm(enumerate(train_data_loader)):
 			head_image = data['head_image']
 			head_position = data['head_position']
@@ -271,7 +273,7 @@ def main():
 			loss = GDLoss(output, gaze_direction)
 			loss.backward()
 			#optimizer.step()
-			scheduler.step(loss)
+			optimizer.step()
 			print("output:",output.data,"groundtruth:",gaze_direction.data)
 			print("lr:",learning_rate,"loss:",loss.data)
 			
@@ -283,6 +285,8 @@ def main():
 		TotalLossList.append(LossList)
 		#print(LossList)
 	#print(TotalLossList)
+	MeanLossList = [np.mean(epochList) for epochList in TotalLossList]
+	writeLoss(MeanLossList,train_param + '/' + 'meanloss.json')
 	writeLoss(TotalLossList,train_param + '/' + 'loss.json')
 	netpath = train_param + '/' + str(epoch) +'epoch.pth'
 	torch.save(net.state_dict(),netpath)
