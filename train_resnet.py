@@ -209,8 +209,8 @@ class SVIPDataset(Dataset):
 
 def GDLoss(direction, gt_direction):
 	cosine_similarity = nn.CosineSimilarity()
-	gt_direction = gt_direction.unsqueeze(0)
-	# print(direction, gt_direction)
+	#gt_direction = gt_direction.unsqueeze(0)
+	print("gdloss",direction, gt_direction)
 	loss = torch.mean(1 - cosine_similarity(direction, gt_direction))
 	return loss
 def LossPlot(lst,plotname,folder):
@@ -221,6 +221,10 @@ def LossPlot(lst,plotname,folder):
 		print("notexist")         
 		os.makedirs(folder)
 	plt.savefig(folder + '/' + plotname + '.jpg')
+
+def writeLoss(lst,path):
+	with open(path,'w') as f:
+		json.dump(lst,f)
 def main():
 	net = GazeDirectionNet()
 	print("train")
@@ -237,17 +241,17 @@ def main():
 
 	train_set = SVIPDataset(root_dir='data/SVIP/',
                            ann_file='SVIP_annotation.json')
-
-	train_data_loader = DataLoader(train_set, batch_size=1,
+	bs = 5
+	train_data_loader = DataLoader(train_set, batch_size=bs,
                                    shuffle=False, num_workers=1)
-	MeanLossList = []
-	epoch = 1
+	TotalLossList = []
+	epoch = 5
 	scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1, last_epoch=-1)
 	#scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10, verbose=False, threshold=0.001, threshold_mode='rel', cooldown=0, min_lr=0, eps=1e-08)
 	#verbose=true: print the lr
 	#adjust lr: https://blog.csdn.net/m0_37531129/article/details/107794136
 	pretrained = 'pretrained'
-	train_param = 'lr_' + str(learning_rate) + '_' + str(epoch) + '_epoch_' + pretrained
+	train_param = 'batchsize_' + str(bs) + '_lr_' + str(learning_rate) + '_' + str(epoch) + '_epoch_' + pretrained
 	if not os.path.exists(train_param):    
 		print("notexist")         
 		os.makedirs(train_param)
@@ -258,9 +262,12 @@ def main():
 			head_image = data['head_image']
 			head_position = data['head_position']
 			gaze_direction = data['gaze_direction']
-			# print("!!!!!!!!:",gaze_direction)
+			#print(gaze_direction)
+			#print("!!!!!!!!:",gaze_direction)
 			optimizer.zero_grad()
 			output = net([head_image, head_position])
+			#print("!!!!!!!!:",output)
+			#print("!!!",output.size, gaze_direction.size)
 			loss = GDLoss(output, gaze_direction)
 			loss.backward()
 			#optimizer.step()
@@ -268,12 +275,18 @@ def main():
 			print("output:",output.data,"groundtruth:",gaze_direction.data)
 			print("lr:",learning_rate,"loss:",loss.data)
 			
-			LossList.append(loss.data)
-		netpath = train_param + '/' + epochName +'.pth'
+			LossList.append(float(loss.data.numpy()))
+			#print("???????????",loss.data.numpy())
+		#netpath = train_param + '/' + epochName +'.pth'
 		torch.save(net.state_dict(),netpath)
-		LossPlot(LossList,epochName,netpath + '/loss')
-		MeanLossList.append(np.mean(LossList))
-	LossPlot(MeanLossList,'meanloss_'+ str(epoch) + 'epoches',train_param)
+		#LossPlot(LossList,epochName,netpath + '/loss')
+		TotalLossList.append(LossList)
+		#print(LossList)
+	#print(TotalLossList)
+	writeLoss(TotalLossList,train_param + '/' + 'loss.json')
+	netpath = train_param + '/' + str(epoch) +'.pth'
+	
+	#LossPlot(MeanLossList,'meanloss_'+ str(epoch) + 'epoches',train_param)
 if __name__ == '__main__':
     main()
 #################################### train on dataset   ######################################
