@@ -210,7 +210,7 @@ class SVIPDataset(Dataset):
 def GDLoss(direction, gt_direction):
 	cosine_similarity = nn.CosineSimilarity()
 	#gt_direction = gt_direction.unsqueeze(0)
-	print("gdloss",direction, gt_direction)
+	#print("gdloss",direction, gt_direction)
 	loss = torch.mean(1 - cosine_similarity(direction, gt_direction))
 	return loss
 def LossPlot(lst,plotname,folder):
@@ -278,13 +278,14 @@ def main():
 			LossList.append(float(loss.data.numpy()))
 			#print("???????????",loss.data.numpy())
 		#netpath = train_param + '/' + epochName +'.pth'
-		torch.save(net.state_dict(),netpath)
+		
 		#LossPlot(LossList,epochName,netpath + '/loss')
 		TotalLossList.append(LossList)
 		#print(LossList)
 	#print(TotalLossList)
 	writeLoss(TotalLossList,train_param + '/' + 'loss.json')
-	netpath = train_param + '/' + str(epoch) +'.pth'
+	netpath = train_param + '/' + str(epoch) +'epoch.pth'
+	torch.save(net.state_dict(),netpath)
 	
 	#LossPlot(MeanLossList,'meanloss_'+ str(epoch) + 'epoches',train_param)
 if __name__ == '__main__':
