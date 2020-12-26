@@ -14,8 +14,8 @@ model_urls = {
 def conv3x3(indepth, depth, stride=1):
     return nn.Conv2d(indepth, depth, kernel_size=3, stride=stride, padding=1, bias=False)
 
-def conv1x1(indepth, depth, stride=1):
-    return nn.Conv2d(indepth, depth, kernel_size=1, stride=stride, padding=0, bias=False)
+def conv1x1(indepth, depth):
+    return nn.Conv2d(indepth, depth, kernel_size=1,bias=False)
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -75,7 +75,7 @@ class BottleNeck(nn.Module):
         y = self.bn(y)
         y = self.relu(y)
         
-        y = self.conv2(y)
+        y = self.conv3(y)
         y = self.bn_4(y)
 
         if self.downsample is not None:
@@ -107,7 +107,7 @@ class ResNet(nn.Module):
         self.avgpool = nn.AvgPool2d(7, stride=1)
         self.fc = nn.Linear(512 * block.expansion, num_classes)
 
-        for m in self.models():
+        for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 m.weight.data.normal_(0, math.sqrt(2./n))
@@ -154,7 +154,7 @@ def resnet18(pretrained=False, **kwargs):
     return model
 
 def resnet34(pretrained=False, **kwargs):
-     model = ResNet(BasicBlock, [3, 4, 6, 3], **kwargs)
+    model = ResNet(BasicBlock, [3, 4, 6, 3], **kwargs)
     if pretrained:
         model.load_state_dict(model_zoo.load_url(model_urls['resnet34']))
     return model
