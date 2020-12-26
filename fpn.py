@@ -108,6 +108,7 @@ class ResNet(nn.Module):
         # add gaze_field mat
         x = self.conv1(x)
         x = self.bn1(x)
+        # print(x)
         x = self.relu(x)
         x = self.maxpool(x)
 
@@ -202,7 +203,13 @@ class FPN(nn.Module):
         return re2, re3, re4, re5
 
     def forward(self, x):
+        # print(x)
         c2, c3, c4, c5 = self.resnet(x)
+
+        # print(c2)
+        # print(c3)
+        # print(c4)
+        # print(c5)
 
         r2, r3, r4, r5 = self.top_down((c2, c3, c4, c5))
 
@@ -213,5 +220,6 @@ class FPN(nn.Module):
 
 
 if __name__ == '__main__':
-	net = resnet50()
-	print(net)
+    net = resnet50()
+    for param in net.parameters():
+        print(param)
