@@ -56,7 +56,7 @@ class SVIPDataset(Dataset):
 				  'head_image':head_image,
 				  'head_position':torch.FloatTensor(head_pos),
 				  'gaze_direction':torch.FloatTensor(gaze_dir),
-				  'gaze_direction_field': torch.cat([image,gdf,gdf_2,gdf_5],dim=0).unsqueeze(0),
+				  'gaze_direction_field': torch.cat([image,gdf,gdf_2,gdf_5],dim=0),
                   'gaze_positon': torch.FloatTensor(gaze),
                   'heatmap': torch.FloatTensor(heatmap).unsqueeze(0)}
 		# print(sample["gaze_positon"])
@@ -75,12 +75,12 @@ class SVIPDataset(Dataset):
 		return face_image
 
 	def get_direction_field(self,head_x,head_y,gaze_direction,gamma=1):
-		head_x = int(224 * head_x)
-		head_y = int(224 * head_y)
+		head_x = int(1920 * head_x)
+		head_y = int(1080 * head_y)
 		field = np.zeros((224,224))
 		for idx_y,row in enumerate(field):
 			for idx_x,pix in enumerate(row):
-				d = np.array([idx_x - head_x, idx_y - head_y])
+				d = np.array([idx_x*8.57 - head_x, idx_y*4.82 - head_y])
 				G = d/np.linalg.norm(d)
 				field[idx_y,idx_x] = max(G[0] * gaze_direction[0] + G[1] * gaze_direction[1],0)
 		return field
@@ -123,19 +123,7 @@ def main():
 	train_data_loader = DataLoader(train_set, batch_size=1,
                                    shuffle=False, num_workers=1)
 	for i, data in tqdm(enumerate(train_data_loader)):
-		# print('+++++++++++|{}|+++++++++++'.format(i))
-		image = data['image']
-		# print('1:',image)
-		head_image = data['head_image']
-		# print('2:',head_image)
-		head_position = data['head_position']
-		# print('3:',head_position)
-		gaze_direction = data['gaze_direction']
-		# print('4:',gaze_direction)
-		gaze_positon = data['gaze_positon']
-		# print('5:',gaze_positon)
-		heatmap = data['heatmap']
-		# print('6:',heatmap)
+		
 
 
 
