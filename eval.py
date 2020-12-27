@@ -172,8 +172,19 @@ def transform_direction(output_direction):
 	output = output_direction.detach().numpy()
 	return output
 
+def draw_full(image,eye,heatmap):
+	image_height, image_width = image.shape[:2]
+	x1, y1 = eye
+	x3, y3 = extract_gaze_point(heatmap)
+	x1, y1 = image_width * x1, y1 * image_height
+	x3, y3 = image_width * x3, y3 * image_height
+	x1, y1, x3, y3 = map(int, [x1, y1, x3, y3])
+	cv2.circle(image, (x1, y1), 15, [0, 255, 0], 5)
+	cv2.circle(image, (x3, y3), 15, [255, 0, 0], 5)
+	cv2.line(image, (x1, y1), (x3, y3), [255, 0, 0], 5)
+	return image
 def main():
-	DATA_ROOT = 'data/bingbing/'
+	DATA_ROOT = 'data/wbq/'
 
 	GDnet = GazeDirectionNet()
 	GDnet.load_state_dict(torch.load('train3.pth',map_location=torch.device('cpu')))
@@ -189,9 +200,10 @@ def main():
 	model_dict.update(pretrained_dict)
 	fpn_net.load_state_dict(model_dict)
 
-	eval_set = SVIPDataset(root_dir=DATA_ROOT,ann_file='our_test_annotation.json')
+	eval_set = SVIPDataset(root_dir=DATA_ROOT,ann_file='wbq_annotation.json')
 	data_loader = DataLoader(eval_set,batch_size=1,shuffle=False,num_workers=1)
 
+	# full = cv2.imread(DATA_ROOT + 'dinner.png')
 	for i, data in tqdm(enumerate(data_loader)):
 		eye = data['eye']
 		gaze_GT = data['gaze_positon']
@@ -206,14 +218,16 @@ def main():
 		output_heatmap = fpn_net(fpn_input)[0][0]
 
 		img = cv2.imread(DATA_ROOT + data['path'][0])
-		draw_temp(img,eye,gaze_GT,output_heatmap.detach().numpy(),'bb-'+str(i))
+		draw_temp(img,eye,gaze_GT,output_heatmap.detach().numpy(),'wbq-'+str(i))
+		# draw_full(full,eye,output_heatmap.detach().numpy())
 		# draw_input(img,eye,str(i))
 		# img = cv2.imread(DATA_ROOT + data['path'][0])
 		# draw_direction(img,eye,output_direction[0],str(i))
 		img = cv2.imread(DATA_ROOT + data['path'][0])
-		draw_heatmap(img,output_heatmap.detach().numpy(),'bb-'+str(i))
+		draw_heatmap(img,output_heatmap.detach().numpy(),'wbq-'+str(i))
 		# img = cv2.imread(DATA_ROOT + data['path'][0])
 		# draw_final(img,eye,gaze_GT,output_heatmap.detach().numpy(),str(i))
+	# cv2.imwrite('result/dinner-full.png', full)
 
 
 if __name__ == '__main__':
