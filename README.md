@@ -1,6 +1,6 @@
 # CVFinal
 
-<img src="./poster.jpg" alt="poster" style="zoom:300%;" />
+<img src="poster.jpg" alt="poster" style="zoom:300%;" />
 
 
 
